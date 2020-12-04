@@ -2,25 +2,26 @@ package main
 
 import (
 	"crypto/rand"
-	"encoding/json"
 	"fmt"
 	"locallibs/support"
 	"time"
+
+	"gopkg.in/yaml.v2"
 )
 
 type config struct {
 	// var name has to be uppercase here or it won't work
-	EtcdConf etcdConfig `json:"etcd"`
+	EtcdConf etcdConfig `yaml:"etcd"`
 }
 
 type etcdConfig struct {
 	// var name has to be uppercase here or it won't work
-	Endpoints  []string `json:"endpoints"`
-	KeyToWrite string   `json:"keyToWrite"`
-	Timeout    int      `json:"timeout"`
-	CertCa     string   `json:"cert-ca"`
-	PeerCert   string   `json:"peer-cert"`
-	PeerKey    string   `json:"peer-key"`
+	Endpoints  []string `yaml:"endpoints"`
+	KeyToWrite string   `yaml:"keyToWrite"`
+	Timeout    int      `yaml:"timeout"`
+	CertCa     string   `yaml:"cert-ca"`
+	PeerCert   string   `yaml:"peer-cert"`
+	PeerKey    string   `yaml:"peer-key"`
 }
 
 // GenerateID creates a random string 12 digits long and returns it to server as an id
@@ -47,6 +48,7 @@ func GenerateID() string {
 // Main entry point
 func main() {
 	support.SetupCloseHandler() // setup ctrl + c to break loop
+	println("Press ctrl + c to exit...")
 
 	strIP := support.GetOutboundIP().String()
 	clientID := GenerateID()
@@ -55,10 +57,9 @@ func main() {
 	// fmt.Scanf("%q", &msg)
 
 	var config config
-	stringConf := support.ReadConfigFileContents("support/config.json")
-	err := json.Unmarshal([]byte(stringConf), &config)
+	err := yaml.Unmarshal(support.ReadConfigFileContents("support/config.yml"), &config)
 	if err != nil {
-		fmt.Printf("There was an error decoding the json. err = %s\n", err)
+		fmt.Printf("There was an error decoding the yaml file. err = %s\n", err)
 		return
 	}
 
