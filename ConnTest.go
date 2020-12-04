@@ -11,19 +11,16 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-type config struct {
-	// var name has to be uppercase here or it won't work
-	EtcdConf etcdConfig `yaml:"etcd"`
-}
-
-type etcdConfig struct {
-	// var name has to be uppercase here or it won't work
-	Endpoints  []string `yaml:"endpoints"`
-	KeyToWrite string   `yaml:"keyToWrite"`
-	Timeout    int      `yaml:"timeout"`
-	CertCa     string   `yaml:"cert-ca"`
-	PeerCert   string   `yaml:"peer-cert"`
-	PeerKey    string   `yaml:"peer-key"`
+type Config struct {
+	Etcd struct {
+		// var name has to be uppercase here or it won't work
+		Endpoints  []string `yaml:"endpoints"`
+		KeyToWrite string   `yaml:"keyToWrite"`
+		Timeout    int      `yaml:"timeout"`
+		CertCa     string   `yaml:"cert-ca"`
+		PeerCert   string   `yaml:"peer-cert"`
+		PeerKey    string   `yaml:"peer-key"`
+	}
 }
 
 // GenerateID creates a random string 12 digits long and returns it to server as an id
@@ -48,8 +45,8 @@ func GenerateID() string {
 }
 
 // GetConfigContents Unmarshals the config contents from file into memory
-func GetConfigContents(filename string) config {
-	var conf config
+func GetConfigContents(filename string) Config {
+	var conf Config
 	file := support.ReadConfigFileContents(filename)
 	err := yaml.Unmarshal(file, &conf)
 	if err != nil {
@@ -86,11 +83,11 @@ func main() {
 	for true { // loop forever (user expected to break)
 		now := time.Now()
 		timestamp := now.Format(time.RFC3339Nano)
-		keyToWrite := config.EtcdConf.KeyToWrite + "/" + clientID
+		keyToWrite := config.Etcd.KeyToWrite + "/" + clientID
 		valueToWrite := timestamp + " | " + strIP + " | " + message
 
-		WriteToEtcd(config.EtcdConf, keyToWrite, valueToWrite)
-		values := ReadFromEtcd(config.EtcdConf, config.EtcdConf.KeyToWrite)
+		WriteToEtcd(config, keyToWrite, valueToWrite)
+		values := ReadFromEtcd(config, config.Etcd.KeyToWrite)
 		for k, v := range values {
 			print(k + " :\n")
 			print(v + "\n")

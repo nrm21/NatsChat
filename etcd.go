@@ -11,11 +11,11 @@ import (
 
 // ConnToEtcd connects to an ETCD database using TLS settings and returns the
 // connection object
-func ConnToEtcd(conf etcdConfig) *clientv3.Client {
+func ConnToEtcd(conf Config) *clientv3.Client {
 	tlsInfo := transport.TLSInfo{
-		CertFile:      conf.PeerCert,
-		KeyFile:       conf.PeerKey,
-		TrustedCAFile: conf.CertCa,
+		CertFile:      conf.Etcd.PeerCert,
+		KeyFile:       conf.Etcd.PeerKey,
+		TrustedCAFile: conf.Etcd.CertCa,
 	}
 	tlsConfig, err := tlsInfo.ClientConfig()
 	if err != nil {
@@ -23,7 +23,7 @@ func ConnToEtcd(conf etcdConfig) *clientv3.Client {
 	}
 
 	cli, err := clientv3.New(clientv3.Config{
-		Endpoints:   conf.Endpoints,
+		Endpoints:   conf.Etcd.Endpoints,
 		DialTimeout: 5 * time.Second,
 		TLS:         tlsConfig,
 	})
@@ -36,7 +36,7 @@ func ConnToEtcd(conf etcdConfig) *clientv3.Client {
 
 // ReadFromEtcd reads all sub-prefixes from a given key and returns them in
 // a map[string]string structure
-func ReadFromEtcd(conf etcdConfig, keyToRead string) map[string]string {
+func ReadFromEtcd(conf Config, keyToRead string) map[string]string {
 	cli := ConnToEtcd(conf)
 	defer cli.Close()
 
@@ -56,7 +56,7 @@ func ReadFromEtcd(conf etcdConfig, keyToRead string) map[string]string {
 }
 
 // WriteToEtcd writes once to a given key in etcd
-func WriteToEtcd(conf etcdConfig, keyToWrite string, valueToWrite string) {
+func WriteToEtcd(conf Config, keyToWrite string, valueToWrite string) {
 	cli := ConnToEtcd(conf)
 	defer cli.Close()
 
