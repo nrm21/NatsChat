@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"crypto/rand"
 	"fmt"
 	"locallibs/support"
+	"os"
 	"time"
 
 	"gopkg.in/yaml.v2"
@@ -45,33 +47,45 @@ func GenerateID() string {
 	return string(bytes)
 }
 
+// GetConfigContents grabs the config contents
+func GetConfigContents() config {
+	var conf config
+	err := yaml.Unmarshal(support.ReadConfigFileContents("support/config.yml"), &conf)
+	if err != nil {
+		fmt.Printf("There was an error decoding the yaml file. err = %s\n", err)
+	}
+
+	return conf
+}
+
+// TakeUserInupt gets input from the user
+func TakeUserInupt() string {
+	fmt.Println("Enter a message: ")
+	in := bufio.NewReader(os.Stdin)
+	msg, err := in.ReadString('\n')
+	if err != nil {
+		fmt.Printf("There was an error taking in input: %s\n", err)
+	}
+
+	return msg
+}
+
 // Main entry point
 func main() {
 	support.SetupCloseHandler() // setup ctrl + c to break loop
-	println("Press ctrl + c to exit...")
+	fmt.Println("Press ctrl + c to exit...")
 
 	strIP := support.GetOutboundIP().String()
 	clientID := GenerateID()
-	// fmt.Println("Enter a message: ")
-	// var msg string
-	// fmt.Scanf("%q", &msg)
+	fmt.Println("Client ID is: " + clientID)
+	config := GetConfigContents()
+	message := TakeUserInupt()
 
-	var config config
-	err := yaml.Unmarshal(support.ReadConfigFileContents("support/config.yml"), &config)
-	if err != nil {
-		fmt.Printf("There was an error decoding the yaml file. err = %s\n", err)
-		return
-	}
-
-	var (
-		now       time.Time
-		timestamp string
-	)
 	for true { // loop forever (user expected to break)
-		now = time.Now()
-		timestamp = now.Format(time.RFC3339Nano)
+		now := time.Now()
+		timestamp := now.Format(time.RFC3339Nano)
 		keyToWrite := config.EtcdConf.KeyToWrite + "/" + clientID
-		valueToWrite := timestamp + " | " + strIP + " | " //+ " | " + msg
+		valueToWrite := timestamp + " | " + strIP + " | " + message
 
 		WriteToEtcd(config.EtcdConf, keyToWrite, valueToWrite)
 		values := ReadFromEtcd(config.EtcdConf, keyToWrite)
