@@ -1,0 +1,10 @@
+{
+  "etcd": {
+    "endpoints":  [ "10.150.30.14:2379", "10.150.30.16:2379", "10.150.30.17:2379" ],
+    "keyToWrite": "/nate",
+    "timeout":    5,
+    "cert-ca":    "support/ca.crt",
+    "peer-cert":  "support/peer.crt",
+    "peer-key":   "support/peer.key"
+  }
+}
