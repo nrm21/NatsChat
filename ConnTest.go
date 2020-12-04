@@ -47,10 +47,11 @@ func GenerateID() string {
 	return string(bytes)
 }
 
-// GetConfigContents grabs the config contents
-func GetConfigContents() config {
+// GetConfigContents Unmarshals the config contents from file into memory
+func GetConfigContents(filename string) config {
 	var conf config
-	err := yaml.Unmarshal(support.ReadConfigFileContents("support/config.yml"), &conf)
+	file := support.ReadConfigFileContents(filename)
+	err := yaml.Unmarshal(file, &conf)
 	if err != nil {
 		fmt.Printf("There was an error decoding the yaml file. err = %s\n", err)
 	}
@@ -58,8 +59,8 @@ func GetConfigContents() config {
 	return conf
 }
 
-// TakeUserInupt gets input from the user
-func TakeUserInupt() string {
+// TakeUserInput gets input from the user
+func TakeUserInput() string {
 	fmt.Println("Enter a message: ")
 	in := bufio.NewReader(os.Stdin)
 	msg, err := in.ReadString('\n')
@@ -78,8 +79,9 @@ func main() {
 	strIP := support.GetOutboundIP().String()
 	clientID := GenerateID()
 	fmt.Println("Client ID is: " + clientID)
-	config := GetConfigContents()
-	message := TakeUserInupt()
+	config := GetConfigContents("support/config.yml")
+	//message := TakeUserInput()
+	message := "another test"
 
 	for true { // loop forever (user expected to break)
 		now := time.Now()
@@ -88,9 +90,10 @@ func main() {
 		valueToWrite := timestamp + " | " + strIP + " | " + message
 
 		WriteToEtcd(config.EtcdConf, keyToWrite, valueToWrite)
-		values := ReadFromEtcd(config.EtcdConf, keyToWrite)
-		for _, value := range values {
-			print(value + "\n")
+		values := ReadFromEtcd(config.EtcdConf, config.EtcdConf.KeyToWrite)
+		for k, v := range values {
+			print(k + " :\n")
+			print(v + "\n")
 		}
 		time.Sleep(3 * time.Second)
 	}

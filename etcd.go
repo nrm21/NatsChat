@@ -34,8 +34,9 @@ func ConnToEtcd(conf etcdConfig) *clientv3.Client {
 	return cli
 }
 
-// ReadFromEtcd reads from a key
-func ReadFromEtcd(conf etcdConfig, keyToRead string) []string {
+// ReadFromEtcd reads all sub-prefixes from a given key and returns them in
+// a map[string]string structure
+func ReadFromEtcd(conf etcdConfig, keyToRead string) map[string]string {
 	cli := ConnToEtcd(conf)
 	defer cli.Close()
 
@@ -45,15 +46,16 @@ func ReadFromEtcd(conf etcdConfig, keyToRead string) []string {
 		log.Fatal(err)
 	}
 
-	var answer []string
+	answer := make(map[string]string)
 	for i := range gr.Kvs {
-		answer = append(answer, string(gr.Kvs[i].Value))
+		keyval := string(gr.Kvs[i].Key)
+		answer[keyval] = string(gr.Kvs[i].Value)
 	}
 
 	return answer
 }
 
-// WriteToEtcd writes to one key in etcd
+// WriteToEtcd writes once to a given key in etcd
 func WriteToEtcd(conf etcdConfig, keyToWrite string, valueToWrite string) {
 	cli := ConnToEtcd(conf)
 	defer cli.Close()
