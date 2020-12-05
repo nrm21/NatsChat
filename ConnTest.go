@@ -68,6 +68,36 @@ func TakeUserInput() string {
 	return msg
 }
 
+// GetMicroTime returns a string of the microsecond level of right now (at runtime)
+func GetMicroTime() string {
+	now := time.Now()
+	tstamp := now.Format(time.RFC3339Nano)
+
+	return tstamp[:len(tstamp)-7] // microsecond resolution
+}
+
+// ReadEtcdContinuously continuously prints read variables to screen except the ones we wrote
+func ReadEtcdContinuously(readch chan string, config Config, keyWritten string) {
+	for true {
+		values := ReadFromEtcd(config, config.Etcd.KeyToWrite)
+
+		// remove the value we wrote ourselves
+		if _, ok := values[keyWritten]; ok {
+			delete(values, keyWritten)
+		}
+
+		// now put them in a string for printing
+		msg := ""
+		for k, v := range values {
+			msg += k + " :\t"
+			msg += v + "\n"
+		}
+
+		// and send into channel
+		readch <- msg
+	}
+}
+
 // Main entry point
 func main() {
 	support.SetupCloseHandler() // setup ctrl + c to break loop
@@ -75,23 +105,23 @@ func main() {
 
 	strIP := support.GetOutboundIP().String()
 	clientID := GenerateID()
-	fmt.Println("Client ID is: " + clientID)
 	config := GetConfigContents("support/config.yml")
 	//message := TakeUserInput()
-	message := "another test"
+	message := "retest"
+	timestamp := GetMicroTime()
+	keyToWrite := config.Etcd.KeyToWrite + "/" + clientID
+	valueToWrite := timestamp + " | " + strIP + " | " + message
+
+	fmt.Println("Client ID is: " + clientID)
+	WriteToEtcd(config, keyToWrite, valueToWrite)
+
+	readch := make(chan string)
+	go ReadEtcdContinuously(readch, config, keyToWrite)
 
 	for true { // loop forever (user expected to break)
-		now := time.Now()
-		timestamp := now.Format(time.RFC3339Nano)
-		keyToWrite := config.Etcd.KeyToWrite + "/" + clientID
-		valueToWrite := timestamp + " | " + strIP + " | " + message
+		msg := <-readch
+		print(msg)
 
-		WriteToEtcd(config, keyToWrite, valueToWrite)
-		values := ReadFromEtcd(config, config.Etcd.KeyToWrite)
-		for k, v := range values {
-			print(k + " :\n")
-			print(v + "\n")
-		}
 		time.Sleep(3 * time.Second)
 	}
 }
