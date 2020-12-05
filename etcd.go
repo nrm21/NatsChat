@@ -36,8 +36,8 @@ func ConnToEtcd(conf Config) *clientv3.Client {
 
 // ReadFromEtcd reads all sub-prefixes from a given key and returns them in
 // a map[string]string structure
-func ReadFromEtcd(conf Config, keyToRead string) map[string]string {
-	cli := ConnToEtcd(conf)
+func ReadFromEtcd(config Config, keyToRead string) map[string]string {
+	cli := ConnToEtcd(config)
 	defer cli.Close()
 
 	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
@@ -56,12 +56,24 @@ func ReadFromEtcd(conf Config, keyToRead string) map[string]string {
 }
 
 // WriteToEtcd writes once to a given key in etcd
-func WriteToEtcd(conf Config, keyToWrite string, valueToWrite string) {
-	cli := ConnToEtcd(conf)
+func WriteToEtcd(config Config, keyToWrite string, valueToWrite string) {
+	cli := ConnToEtcd(config)
 	defer cli.Close()
 
 	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 	_, err := cli.Put(ctx, keyToWrite, valueToWrite)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+// DeleteFromEtcd delete the given key from etcd
+func DeleteFromEtcd(config Config, keyToDelete string) {
+	cli := ConnToEtcd(config)
+	defer cli.Close()
+
+	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+	_, err := cli.Delete(ctx, keyToDelete)
 	if err != nil {
 		log.Fatal(err)
 	}

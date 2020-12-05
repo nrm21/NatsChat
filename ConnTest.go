@@ -93,6 +93,11 @@ func ReadEtcdContinuously(readch chan string, config Config, keyWritten string) 
 			msg += v + "\n"
 		}
 
+		// then delete printed key from etcd
+		for keyToDelete, _ := range values {
+			DeleteFromEtcd(config, keyToDelete)
+		}
+
 		// and send into channel
 		readch <- msg
 	}
