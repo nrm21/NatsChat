@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"locallibs/support"
+	"net"
 	"os"
 	"time"
 
@@ -101,5 +102,19 @@ func ReadEtcdContinuously(readch chan string, config Config, keyWritten string) 
 
 		// and send into channel
 		readch <- msg
+	}
+}
+
+func testSockConnect(host string, port string) bool {
+	conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, port), 500*time.Millisecond)
+	if err != nil {
+		fmt.Println("Connecting error:", err)
+	}
+	if conn != nil {
+		defer conn.Close()
+
+		return true
+	} else {
+		return false
 	}
 }
