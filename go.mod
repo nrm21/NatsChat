@@ -1,4 +1,4 @@
-module github.com/nrm21/ConnTest
+module github.com/nrm21/EtcdChat
 
 go 1.15
 
