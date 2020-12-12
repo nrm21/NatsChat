@@ -25,8 +25,8 @@ type Config struct {
 	}
 }
 
-// GetConfigContents Unmarshals the config contents from file into memory
-func GetConfigContents(filename string) Config {
+// Unmarshals the config contents from file into memory
+func getConfigContents(filename string) Config {
 	var conf Config
 	file := support.ReadConfigFileContents(filename)
 	err := yaml.Unmarshal(file, &conf)
@@ -37,8 +37,8 @@ func GetConfigContents(filename string) Config {
 	return conf
 }
 
-// GenerateID creates a random string 12 digits long and returns it to server as an id
-func GenerateID() string {
+// Creates a random string 12 digits long and returns it to server as an id
+func generateID() string {
 	bytes := make([]byte, 12)
 	rand.Read(bytes)
 	for i := range bytes {
@@ -58,8 +58,8 @@ func GenerateID() string {
 	return string(bytes)
 }
 
-// TakeUserInput gets input from the user
-func TakeUserInput() string {
+// Gets input from the user to store in a var
+func takeUserInput() string {
 	fmt.Println("Enter a message: ")
 	in := bufio.NewReader(os.Stdin)
 	msg, err := in.ReadString('\n')
@@ -70,16 +70,16 @@ func TakeUserInput() string {
 	return msg
 }
 
-// GetMicroTime returns a string of the microsecond level of right now (at runtime)
-func GetMicroTime() string {
+// Returns a string of the microsecond level of right now (at runtime)
+func getMicroTime() string {
 	now := time.Now()
 	tstamp := now.Format(time.RFC3339Nano)
 
 	return tstamp[:len(tstamp)-7] // microsecond resolution
 }
 
-// ReadEtcdContinuously continuously prints read variables to screen except the ones we wrote
-func ReadEtcdContinuously(readch chan string, config Config, keyWritten string) {
+// Continuously prints read variables to screen except the ones we wrote
+func readEtcdContinuously(readch chan string, config Config, keyWritten string) {
 	for true {
 		values := ReadFromEtcd(config, config.Etcd.BaseKeyToWrite)
 
@@ -105,6 +105,7 @@ func ReadEtcdContinuously(readch chan string, config Config, keyWritten string) 
 	}
 }
 
+// Checks a socket connection and returns bool of if open or not
 func testSockConnect(host string, port string) bool {
 	conn, _ := net.DialTimeout("tcp", net.JoinHostPort(host, port), 500*time.Millisecond)
 	if conn != nil {

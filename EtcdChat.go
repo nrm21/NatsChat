@@ -8,7 +8,7 @@ import (
 	"github.com/nrm21/EtcdChat/support"
 )
 
-var version = "undefined" // to be auto-added with -ldflags at build time
+var version string // to be auto-added with -ldflags at build time
 
 // Program entry point
 func main() {
@@ -18,11 +18,11 @@ func main() {
 	println("Press ctrl + c to exit...")
 
 	strIP := support.GetOutboundIP().String()
-	config := GetConfigContents("support/config.yml")
-	clientID := GenerateID()
+	config := getConfigContents("support/config.yml")
+	clientID := generateID()
 	//message := TakeUserInput()
 	message := "this message was generated from " + runtime.GOOS
-	timestamp := GetMicroTime()
+	timestamp := getMicroTime()
 	keyToWrite := fmt.Sprintf("%s/%s", config.Etcd.BaseKeyToWrite, clientID)
 	valueToWrite := fmt.Sprintf("%s | %s | %s", timestamp, strIP, message)
 
@@ -38,7 +38,7 @@ func main() {
 	WriteToEtcd(config, keyToWrite, valueToWrite)
 
 	readch := make(chan string)
-	go ReadEtcdContinuously(readch, config, keyToWrite)
+	go readEtcdContinuously(readch, config, keyToWrite)
 
 	for true { // loop forever (user expected to break)
 		msg := <-readch
