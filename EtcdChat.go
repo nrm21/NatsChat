@@ -8,10 +8,14 @@ import (
 	"github.com/nrm21/EtcdChat/support"
 )
 
+var version = "undefined" // to be auto-added with -ldflags at build time
+
 // Program entry point
 func main() {
+	println("Running Version: " + version)
+
 	support.SetupCloseHandler() // setup ctrl + c to break loop
-	fmt.Println("Press ctrl + c to exit...")
+	println("Press ctrl + c to exit...")
 
 	strIP := support.GetOutboundIP().String()
 	config := GetConfigContents("support/config.yml")
