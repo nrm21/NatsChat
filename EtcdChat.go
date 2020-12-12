@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
-	"locallibs/support"
+	"runtime"
 	"time"
+
+	"github.com/nrm21/EtcdChat/support"
 )
 
 // Program entry point
@@ -15,7 +17,7 @@ func main() {
 	config := GetConfigContents("support/config.yml")
 	clientID := GenerateID()
 	//message := TakeUserInput()
-	message := "when you compile for user comment this line and uncomment previous line instead"
+	message := "this message was generated from " + runtime.GOOS
 	timestamp := GetMicroTime()
 	keyToWrite := fmt.Sprintf("%s/%s", config.Etcd.BaseKeyToWrite, clientID)
 	valueToWrite := fmt.Sprintf("%s | %s | %s", timestamp, strIP, message)
@@ -23,10 +25,12 @@ func main() {
 	// if localhost is open use that endpoint instead
 	if testSockConnect("127.0.0.1", "2379") {
 		config.Etcd.Endpoints = []string{"127.0.0.1:2379"}
-		println("Localhost open using localhost instead of config endpoints list")
+		println("Localhost open using localhost socket instead")
+	} else {
+		println("Localhost NOT open using config endpoints list")
 	}
 
-	fmt.Println("Client ID is: " + clientID)
+	println("Client ID is: " + clientID)
 	WriteToEtcd(config, keyToWrite, valueToWrite)
 
 	readch := make(chan string)

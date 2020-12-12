@@ -1,6 +1,6 @@
 module github.com/nrm21/EtcdChat
 
-go 1.15
+go 1.13
 
 require (
 	github.com/coreos/etcd v3.3.25+incompatible

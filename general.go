@@ -4,11 +4,11 @@ import (
 	"bufio"
 	"crypto/rand"
 	"fmt"
-	"locallibs/support"
 	"net"
 	"os"
 	"time"
 
+	"github.com/nrm21/EtcdChat/support"
 	"gopkg.in/yaml.v2"
 )
 
@@ -106,10 +106,7 @@ func ReadEtcdContinuously(readch chan string, config Config, keyWritten string) 
 }
 
 func testSockConnect(host string, port string) bool {
-	conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, port), 500*time.Millisecond)
-	if err != nil {
-		fmt.Println("Connecting error:", err)
-	}
+	conn, _ := net.DialTimeout("tcp", net.JoinHostPort(host, port), 500*time.Millisecond)
 	if conn != nil {
 		defer conn.Close()
 
