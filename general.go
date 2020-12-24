@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/nrm21/EtcdChat/support"
+	"github.com/nrm21/support"
 	"gopkg.in/yaml.v2"
 )
 
@@ -16,12 +16,13 @@ import (
 type Config struct {
 	Etcd struct {
 		// var name has to be uppercase here or it won't work
-		Endpoints      []string `yaml:"endpoints"`
-		BaseKeyToWrite string   `yaml:"baseKeyToWrite"`
-		Timeout        int      `yaml:"timeout"`
-		CertCa         string   `yaml:"cert-ca"`
-		PeerCert       string   `yaml:"peer-cert"`
-		PeerKey        string   `yaml:"peer-key"`
+		Endpoints      []string      `yaml:"endpoints"`
+		BaseKeyToWrite string        `yaml:"baseKeyToWrite"`
+		Timeout        int           `yaml:"timeout"`
+		SleepSeconds   time.Duration `yaml:"sleepSeconds"`
+		CertCa         string        `yaml:"cert-ca"`
+		PeerCert       string        `yaml:"peer-cert"`
+		PeerKey        string        `yaml:"peer-key"`
 	}
 }
 

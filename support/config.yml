@@ -5,6 +5,7 @@ etcd:
     - 10.150.30.17:2379
   baseKeyToWrite: /nate
   timeout:        5
+  sleepSeconds:   3
   cert-ca:        support/ca.crt
   peer-cert:      support/peer.crt
   peer-key:       support/peer.key

@@ -11,5 +11,5 @@ for /f "tokens=1,2,3 delims=." %%a in (VERSION) do (
 
 @rem	Now build the program with the new version
 for /f "tokens=* delims=" %%a in (VERSION) do (
-  go build -v -ldflags="-X main.version=%%a"
+  go build -v -tags walk_use_cgo -ldflags="-X main.version=%%a -H windowsgui" -o "EtcdChat.exe" .
 )
