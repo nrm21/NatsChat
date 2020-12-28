@@ -1,12 +1,9 @@
-/*   TODO:
-.	1) Message on startup if there is no support dir or files
-.	2) Start the continuous etcd read on startup instead of after button press
-*/
-
 package main
 
 import (
 	"fmt"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/lxn/walk"
@@ -18,31 +15,15 @@ var version string // to be auto-added with -ldflags at build time
 
 // Program entry point
 func main() {
-	//regKey := `SOFTWARE\NateMorrison\CalcBandwidth`
-	//regValue := "bwCurrentUsed"
-
-	// k, err := registry.OpenKey(registry.CURRENT_USER, regKey, registry.QUERY_VALUE)
-	// if err != nil {
-	// 	// key doesn't exist lets create it
-	// 	k, _, err = registry.CreateKey(registry.CURRENT_USER, regKey, registry.QUERY_VALUE|registry.SET_VALUE)
-	// 	if err != nil {
-	// 		log.Fatalf("Error creating registry key, exiting program")
-	// 	}
-	// 	// then write current value to the key
-	// 	k, err := registry.OpenKey(registry.CURRENT_USER, regKey, registry.QUERY_VALUE|registry.SET_VALUE)
-	// 	if err != nil {
-	// 		log.Fatalf("Unable to open key to write too")
-	// 	} else {
-	// 		k.SetStringValue(regValue, strconv.FormatFloat(bwCurrentUsed, 'f', -1, 64))
-	// 	}
-	// }
-	// s, _, err := k.GetStringValue(regValue)
-
+	var mw *walk.MainWindow
+	var configSleepMsgBox *walk.TextEdit
 	var resultMsgBox *walk.TextEdit
 	var chatTextBox *walk.LineEdit
 	strIP := support.GetOutboundIP().String()
 	clientID := generateID()
-	config := getConfigContents("support/config.yml")
+	config, err := getConfigContentsFromRegistry(`SOFTWARE\NateMorrison\EtcdChat`)
+	//config, err := getConfigContentsFromYaml("support/config.yml")
+	keyToWrite := fmt.Sprintf("%s/%s", config.Etcd.BaseKeyToWrite, clientID)
 
 	// if localhost is open use that endpoint instead
 	if testSockConnect("127.0.0.1", "2379") {
@@ -53,42 +34,67 @@ func main() {
 	}
 
 	MainWindow{
-		Title:  "Etcd Chat",
-		Size:   Size{1024, 768},
-		Layout: VBox{},
+		AssignTo: &mw,
+		Title:    "Etcd Chat",
+		Size:     Size{1024, 768},
+		Layout:   VBox{},
 		Children: []Widget{
+			HSplitter{
+				Children: []Widget{
+					ScrollView{
+						Layout: HBox{MarginsZero: true},
+						Children: []Widget{
+							TextLabel{
+								Text: "Sleep seconds: ",
+							},
+							TextEdit{
+								AssignTo: &configSleepMsgBox,
+								// convert int to hex before string conversion
+								Text: string(config.Etcd.SleepSeconds + 0x30),
+							},
+							PushButton{
+								MinSize: Size{100, 20},
+								MaxSize: Size{100, 20},
+								Text:    "Configure",
+								OnClicked: func() {
+									intSleepSecs, _ := strconv.Atoi(configSleepMsgBox.Text())
+									setDWordValueToRegistry(`SOFTWARE\NateMorrison\EtcdChat`, "SleepSeconds", intSleepSecs)
+									config.Etcd.SleepSeconds = time.Duration(intSleepSecs)
+								},
+							},
+						},
+					},
+				},
+			},
 			HSplitter{
 				Children: []Widget{
 					TextEdit{
 						AssignTo: &resultMsgBox,
 						ReadOnly: true,
+						MinSize:  Size{600, 610},
 						Font:     Font{Family: "Ariel", PointSize: 12},
 					},
 				},
 			},
 			HSplitter{
 				Children: []Widget{
-					LineEdit{AssignTo: &chatTextBox, Text: ""},
-					PushButton{
-						MaxSize: Size{30, 20},
-						Text:    "Send",
-						OnClicked: func() {
-							go func() {
-								timestamp := getMicroTime()
-								keyToWrite := fmt.Sprintf("%s/%s", config.Etcd.BaseKeyToWrite, clientID)
-								valueToWrite := fmt.Sprintf("%s ___ %s ___ %s", timestamp, strIP, chatTextBox.Text()+"\r\n")
-								WriteToEtcd(config, keyToWrite, valueToWrite)
-
-								readch := make(chan string)
-								go readEtcdContinuously(readch, config, keyToWrite)
-
-								for true { // loop forever (user expected to break)
-									msg := <-readch
-									msg = resultMsgBox.Text() + msg
-									resultMsgBox.SetText(msg)
-									time.Sleep(config.Etcd.SleepSeconds * time.Second)
-								}
-							}()
+					ScrollView{
+						Layout: HBox{MarginsZero: true},
+						Children: []Widget{
+							LineEdit{AssignTo: &chatTextBox, Text: ""},
+							PushButton{
+								MinSize: Size{100, 20},
+								MaxSize: Size{100, 20},
+								Text:    "Send",
+								OnClicked: func() {
+									go func() {
+										timestamp := getMilliTime()
+										valueToWrite := fmt.Sprintf("%s || %s . . . %s", timestamp, strIP, chatTextBox.Text()+"\r\n")
+										WriteToEtcd(config, keyToWrite, valueToWrite)
+										chatTextBox.SetText("")
+									}()
+								},
+							},
 						},
 					},
 				},
@@ -100,5 +106,16 @@ func main() {
 				},
 			},
 		},
-	}.Run()
+	}.Create()
+
+	// If the config file doesn't exist this will run from config file
+	if os.IsNotExist(err) {
+		walk.MsgBox(mw, "Error", "The proper config file or registry keys do not exist", walk.MsgBoxIconError)
+		os.Exit(1)
+	}
+
+	// Start listening for a response
+	go listenForResponse(&config, resultMsgBox, keyToWrite)
+
+	mw.Run()
 }

@@ -6,9 +6,12 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 	"time"
 
+	"github.com/lxn/walk"
 	"github.com/nrm21/support"
+	"golang.org/x/sys/windows/registry"
 	"gopkg.in/yaml.v2"
 )
 
@@ -27,15 +30,66 @@ type Config struct {
 }
 
 // Unmarshals the config contents from file into memory
-func getConfigContents(filename string) Config {
+func getConfigContentsFromYaml(filename string) (Config, error) {
 	var conf Config
-	file := support.ReadConfigFileContents(filename)
-	err := yaml.Unmarshal(file, &conf)
+	file, err := support.ReadConfigFileContents(filename)
+	if err != nil {
+		fmt.Printf("The file was not found. err = %s\n", err)
+		return conf, err
+	}
+	err = yaml.Unmarshal(file, &conf)
 	if err != nil {
 		fmt.Printf("There was an error decoding the yaml file. err = %s\n", err)
+		return conf, err
 	}
 
-	return conf
+	return conf, nil
+}
+
+// Gets config values from registry keys
+func getConfigContentsFromRegistry(regKey string) (Config, error) {
+	var conf Config
+
+	k, err := registry.OpenKey(registry.CURRENT_USER, regKey, registry.QUERY_VALUE)
+	if err != nil {
+		return conf, err // the reg key doesn't exist
+	}
+
+	// Now return contents of specified keys
+	conf.Etcd.Endpoints, _, err = k.GetStringsValue("Endpoints")
+	conf.Etcd.BaseKeyToWrite, _, err = k.GetStringValue("BaseKeyToWrite")
+	conf.Etcd.CertCa, _, err = k.GetStringValue("CertCa")
+	conf.Etcd.PeerCert, _, err = k.GetStringValue("PeerCert")
+	conf.Etcd.PeerKey, _, err = k.GetStringValue("PeerKey")
+	if err != nil {
+		return conf, err // a reg value may be missing
+	}
+	timeout, _, err := k.GetIntegerValue("Timeout")
+	conf.Etcd.Timeout = int(timeout)
+	if err != nil {
+		return conf, err // a reg value may be missing
+	}
+	sleepsecs, _, err := k.GetIntegerValue("SleepSeconds")
+	conf.Etcd.SleepSeconds = time.Duration(sleepsecs)
+	if err != nil {
+		return conf, err // a reg value may be missing
+	}
+
+	return conf, nil
+}
+
+// Saves the given value path to the registry
+func setDWordValueToRegistry(regKey string, regValue string, sleepSecs int) error {
+	k, err := registry.OpenKey(registry.CURRENT_USER, regKey, registry.QUERY_VALUE|registry.SET_VALUE)
+	if err != nil {
+		return err // the reg key doesn't exist
+	}
+	err = k.SetDWordValue(regValue, uint32(sleepSecs))
+	if err != nil {
+		return err // something else went wrong
+	}
+
+	return nil
 }
 
 // Creates a random string 12 digits long and returns it to server as an id
@@ -71,18 +125,19 @@ func takeUserInput() string {
 	return msg
 }
 
-// Returns a string of the microsecond level of right now (at runtime)
-func getMicroTime() string {
+// Returns a string of (up to) the nanosecond level of right now (at runtime)
+func getMilliTime() string {
 	now := time.Now()
 	tstamp := now.Format(time.RFC3339Nano)
+	tstamp = strings.Replace(tstamp, "T", "  ", 1)
 
-	return tstamp[:len(tstamp)-7] // microsecond resolution
+	return tstamp[:len(tstamp)-14] // second resolution
 }
 
 // Continuously prints read variables to screen except the ones we wrote
-func readEtcdContinuously(readch chan string, config Config, keyWritten string) {
+func readEtcdContinuously(readch chan string, config *Config, keyWritten string) {
 	for true {
-		values := ReadFromEtcd(config, config.Etcd.BaseKeyToWrite)
+		values := ReadFromEtcd(*config, config.Etcd.BaseKeyToWrite)
 
 		// remove the value we wrote ourselves
 		if _, ok := values[keyWritten]; ok {
@@ -91,14 +146,14 @@ func readEtcdContinuously(readch chan string, config Config, keyWritten string) 
 
 		// now put them in a string for printing
 		msg := ""
-		for k, v := range values {
-			msg += k + " :\t"
-			msg += v + "\n"
+		for _, v := range values {
+			//msg += k + " :\t"	// key reading from
+			msg += v + "\n" // timestamp + IP + msg
 		}
 
 		// then delete printed key from etcd
 		for keyToDelete := range values {
-			DeleteFromEtcd(config, keyToDelete)
+			DeleteFromEtcd(*config, keyToDelete)
 		}
 
 		// and send into channel
@@ -115,5 +170,20 @@ func testSockConnect(host string, port string) bool {
 		return true
 	} else {
 		return false
+	}
+}
+
+// loops forever waiting for a response to the channel
+func listenForResponse(config *Config, resultMsgBox *walk.TextEdit, keyToWrite string) {
+	readch := make(chan string)
+
+	// This needs its own thread since it also loops forever
+	go readEtcdContinuously(readch, config, keyToWrite)
+
+	for true { // loop forever (user expected to break)
+		msg := <-readch
+		msg = resultMsgBox.Text() + msg
+		resultMsgBox.SetText(msg)
+		time.Sleep(config.Etcd.SleepSeconds * time.Second)
 	}
 }
