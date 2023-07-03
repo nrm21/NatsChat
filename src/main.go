@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	general "NatsChat/src/general"
+
 	"github.com/lxn/walk"
 	. "github.com/lxn/walk/declarative"
 	nats "github.com/nats-io/nats.go"
@@ -20,6 +21,7 @@ func main() {
 	var configIDMsgBox *walk.TextEdit
 	var logWindowBox *walk.TextEdit
 	var chatTextBox *walk.LineEdit
+	var showOwnMsgsCheckbox *walk.CheckBox
 	var nc *nats.Conn
 	var clientID string
 	var config general.Config
@@ -64,7 +66,7 @@ func main() {
 					TextEdit{
 						AssignTo: &logWindowBox,
 						ReadOnly: true,
-						MinSize:  Size{600, 610},
+						MinSize:  Size{600, 605},
 						Font:     Font{Family: "Ariel", PointSize: 12},
 					},
 				},
@@ -96,6 +98,11 @@ func main() {
 			},
 			HSplitter{
 				Children: []Widget{
+					CheckBox{
+						AssignTo: &showOwnMsgsCheckbox,
+						Text:     "Show own messages",
+						Checked:  true,
+					},
 					TextLabel{ /* Text: "Client : " + clientI */ },
 					TextLabel{Text: "Version : " + version},
 				},
@@ -122,14 +129,19 @@ func main() {
 		walk.MsgBox(mw, "Error", err.Error(), walk.MsgBoxIconError)
 		log.Fatalln(err)
 	} else {
-		nc.Subscribe(config.Nats.Subname, func(m *nats.Msg) {
-			newMsg := string(m.Data)
+		nc.Subscribe(config.Nats.Subname, func(msg *nats.Msg) {
+			newMsg := string(msg.Data)
 			sendingClient := newMsg[strings.Index(newMsg, "[")+1 : strings.Index(newMsg, "]")]
 			if clientID == sendingClient { // if we are sender
-				newMsg = strings.Replace(newMsg, "[", "**[", 1)
+				if showOwnMsgsCheckbox.Checked() == true { // if we allow seeing our own messages
+					// then higlight our msgs and show
+					newMsg = strings.Replace(newMsg, "[", "**[", 1)
+					logWindowBox.SetText(logWindowBox.Text() + newMsg)
+				}
+			} else {
+				// just show remote msgs
+				logWindowBox.SetText(logWindowBox.Text() + newMsg)
 			}
-			// read existing log plus new msg
-			logWindowBox.SetText(logWindowBox.Text() + newMsg)
 		})
 	}
 
