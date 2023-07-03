@@ -14,17 +14,27 @@ import (
 )
 
 var version string // to be auto-added with -ldflags at build time
+var clientID string
+var config general.Config
+var nc *nats.Conn
+
+var mw *walk.MainWindow
+var configIDMsgBox *walk.TextEdit
+var logWindowBox *walk.TextEdit
+var chatTextBox *walk.LineEdit
+var showOwnMsgsCheckbox *walk.CheckBox
+
+func sendMessage() {
+	valueToWrite := ""
+	// Publish message and clear textbox
+	valueToWrite = fmt.Sprintf("<%s> [%s]  %s", general.GetMilliTime(),
+		clientID, chatTextBox.Text()+"\r\n")
+	nc.Publish(config.Nats.Subname, []byte(valueToWrite))
+	chatTextBox.SetText("")
+}
 
 // Program entry point
 func main() {
-	var mw *walk.MainWindow
-	var configIDMsgBox *walk.TextEdit
-	var logWindowBox *walk.TextEdit
-	var chatTextBox *walk.LineEdit
-	var showOwnMsgsCheckbox *walk.CheckBox
-	var nc *nats.Conn
-	var clientID string
-	var config general.Config
 	var err error
 
 	clientID = general.GenerateID()
@@ -76,20 +86,21 @@ func main() {
 					ScrollView{
 						Layout: HBox{MarginsZero: true},
 						Children: []Widget{
-							LineEdit{AssignTo: &chatTextBox, Text: ""},
+							LineEdit{
+								AssignTo: &chatTextBox,
+								OnKeyDown: func(key walk.Key) {
+									if key == walk.KeyReturn {
+										go sendMessage()
+									}
+								},
+								Text: "",
+							},
 							PushButton{
 								MinSize: Size{100, 20},
 								MaxSize: Size{100, 20},
 								Text:    "Send",
 								OnClicked: func() {
-									go func() {
-										valueToWrite := ""
-										// Publish message and clear textbox
-										valueToWrite = fmt.Sprintf("<%s> [%s]  %s", general.GetMilliTime(),
-											clientID, chatTextBox.Text()+"\r\n")
-										nc.Publish(config.Nats.Subname, []byte(valueToWrite))
-										chatTextBox.SetText("")
-									}()
+									go sendMessage()
 								},
 							},
 						},
