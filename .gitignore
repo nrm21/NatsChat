@@ -1,4 +1,5 @@
 .vscode/*
 .bin/*
 *.exe
+*.bak
 __debug_bin

@@ -1,5 +1,5 @@
 nats:
   endpoints:
-    - nats://127.0.0.1:4222
+    - nats://10.150.30.38:4222
   timeout:  5
-  subname:  "natstest"
+  subname:  "natschat"
